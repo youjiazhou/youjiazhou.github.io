@@ -1,0 +1,852 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Youjia Zhou</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;1,400&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;1,9..40,300&display=swap" rel="stylesheet" />
+
+  <style>
+    /* =========================================================
+       DESIGN TOKENS
+       ========================================================= */
+    :root {
+      --bg:          #f7f6f3;
+      --surface:     #ffffff;
+      --border:      #e8e4dd;
+      --text-main:   #1c1a17;
+      --text-muted:  #7a7268;
+      --accent:      #3d7ebf;
+      --accent-warm: #e07b39;
+      --radius:      14px;
+      --nav-h:       64px;
+    }
+
+    /* =========================================================
+       RESET
+       ========================================================= */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; }
+    body {
+      font-family: 'DM Sans', sans-serif;
+      background: var(--bg);
+      color: var(--text-main);
+      min-height: 100vh;
+      overflow-x: hidden;
+      opacity: 0;
+      transition: opacity 0.45s ease;
+    }
+    body.loaded { opacity: 1; }
+
+    /* grain overlay */
+    body::before {
+      content: '';
+      position: fixed; inset: 0;
+      pointer-events: none; z-index: 0; opacity: 0.025;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+      background-size: 200px;
+    }
+
+    /* =========================================================
+       HEADER
+       ========================================================= */
+    .site-header {
+      position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+      height: var(--nav-h);
+      background: rgba(247,246,243,0.88);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--border);
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 0 clamp(1.25rem, 5vw, 3.5rem);
+    }
+    .site-name {
+      font-family: 'Playfair Display', serif;
+      font-size: clamp(1.1rem, 2.5vw, 1.45rem);
+      font-weight: 600; letter-spacing: -0.01em;
+      color: var(--text-main); cursor: pointer; user-select: none;
+    }
+
+    /* =========================================================
+       DESKTOP NAV
+       ========================================================= */
+    .nav-list {
+      display: flex; gap: clamp(0.5rem, 2vw, 2rem);
+      list-style: none; align-items: center;
+    }
+    .nav-btn {
+      background: none; border: none; cursor: pointer;
+      font-family: 'DM Sans', sans-serif;
+      font-size: 0.9rem; font-weight: 500;
+      color: var(--text-muted);
+      padding: 6px 10px; border-radius: 8px;
+      transition: color 0.2s, background 0.2s;
+      position: relative; letter-spacing: 0.02em;
+    }
+    .nav-btn::after {
+      content: ''; position: absolute;
+      bottom: 2px; left: 50%; transform: translateX(-50%);
+      width: 0; height: 2px; background: var(--accent);
+      border-radius: 2px; transition: width 0.25s ease;
+    }
+    .nav-btn:hover { color: var(--text-main); background: rgba(61,126,191,0.07); }
+    .nav-btn.active { color: var(--accent); }
+    .nav-btn.active::after { width: 60%; }
+
+    /* =========================================================
+       HAMBURGER + MOBILE DRAWER
+       ========================================================= */
+    .hamburger {
+      display: none; flex-direction: column; gap: 5px;
+      cursor: pointer; padding: 6px; background: none; border: none;
+    }
+    .hamburger span {
+      display: block; width: 22px; height: 2px;
+      background: var(--text-main); border-radius: 2px;
+      transition: transform 0.3s, opacity 0.3s;
+    }
+    .hamburger.open span:nth-child(1) { transform: translateY(7px) rotate(45deg); }
+    .hamburger.open span:nth-child(2) { opacity: 0; }
+    .hamburger.open span:nth-child(3) { transform: translateY(-7px) rotate(-45deg); }
+
+    .mobile-nav {
+      display: none; position: fixed;
+      top: var(--nav-h); left: 0; right: 0;
+      background: rgba(247,246,243,0.97);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--border);
+      padding: 1rem 1.5rem 1.5rem;
+      z-index: 99; flex-direction: column; gap: 0.25rem;
+      transform: translateY(-20px); opacity: 0;
+      transition: transform 0.3s ease, opacity 0.3s ease;
+      pointer-events: none;
+    }
+    .mobile-nav.open { transform: translateY(0); opacity: 1; pointer-events: auto; }
+    .mobile-nav .nav-btn { font-size: 1rem; padding: 10px 14px; text-align: left; width: 100%; }
+
+    /* =========================================================
+       TAB SYSTEM
+       Sections are hidden with display:none by default.
+       Only .active gets display:block + slide-in animation.
+       ========================================================= */
+    .page-wrap { padding-top: var(--nav-h); position: relative; z-index: 1; }
+
+    .section {
+      display: none;
+      padding: clamp(2rem, 6vw, 4rem) clamp(1.25rem, 6vw, 5rem);
+      min-height: calc(100vh - var(--nav-h));
+    }
+    .section.active { display: block; }
+
+    @keyframes slideInR {
+      from { opacity: 0; transform: translateX(40px); }
+      to   { opacity: 1; transform: translateX(0); }
+    }
+    @keyframes slideInL {
+      from { opacity: 0; transform: translateX(-40px); }
+      to   { opacity: 1; transform: translateX(0); }
+    }
+    .section.active.from-right { animation: slideInR 0.38s cubic-bezier(0.4,0,0.2,1) both; }
+    .section.active.from-left  { animation: slideInL 0.38s cubic-bezier(0.4,0,0.2,1) both; }
+
+    /* =========================================================
+       HOME
+       ========================================================= */
+    .home-layout {
+      display: grid;
+      grid-template-columns: 220px 1fr;
+      gap: clamp(2rem, 5vw, 4rem);
+      align-items: flex-start;
+      max-width: 960px; margin: 0 auto; padding-top: 2rem;
+    }
+
+    .avatar-col { display: flex; flex-direction: column; align-items: center; gap: 1rem; }
+
+    .avatar-wrap {
+      width: 200px; height: 200px; border-radius: 50%;
+      overflow: hidden;
+      background: linear-gradient(135deg, #d4e8f7 0%, #b8d4e8 50%, #c5e0ce 100%);
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
+      box-shadow: 0 8px 32px rgba(61,126,191,0.15), 0 2px 8px rgba(0,0,0,0.06);
+      border: 3px solid var(--surface);
+      position: relative;
+    }
+    .avatar-wrap img {
+      width: 100%; height: 100%; object-fit: cover; border-radius: 50%; display: block;
+    }
+    .avatar-fallback {
+      font-family: 'Playfair Display', serif;
+      font-size: 3rem; font-weight: 600;
+      color: var(--accent); letter-spacing: -0.02em; user-select: none;
+    }
+    .avatar-wrap::after {
+      content: ''; position: absolute; inset: -6px; border-radius: 50%;
+      border: 2px dashed rgba(61,126,191,0.25); pointer-events: none;
+    }
+
+    .avatar-title { text-align: center; }
+    .avatar-role  { font-size: 0.9rem; font-weight: 500; color: var(--accent); letter-spacing: 0.01em; }
+    .avatar-inst  { font-size: 0.82rem; color: var(--text-muted); font-weight: 300; margin-top: 2px; }
+
+    .about-content { padding-top: 0.5rem; }
+
+    .about-headline {
+      font-family: 'Playfair Display', serif;
+      font-size: clamp(2.2rem, 5vw, 3.2rem);
+      font-weight: 600; line-height: 1.15;
+      margin-bottom: 1.25rem; letter-spacing: -0.02em;
+    }
+    .about-headline .black   { color: var(--text-main); }
+    .about-headline .colored { color: var(--accent-warm); font-style: italic; }
+
+    .about-body {
+      font-size: clamp(0.92rem, 1.5vw, 1.02rem);
+      line-height: 1.78; color: var(--text-main);
+      font-weight: 300; max-width: 580px;
+    }
+    .about-body p + p { margin-top: 1rem; }
+
+    .about-tags { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-top: 1.5rem; }
+    .tag      { font-size: 0.78rem; font-weight: 500; padding: 4px 12px; border-radius: 999px; letter-spacing: 0.03em; }
+    .tag-blue { background: rgba(61,126,191,0.12); color: var(--accent); }
+
+    .about-links { display: flex; gap: 1rem; margin-top: 1.75rem; flex-wrap: wrap; }
+    .about-link {
+      display: inline-flex; align-items: center; gap: 0.4rem;
+      font-size: 0.88rem; font-weight: 500; color: var(--accent);
+      text-decoration: none;
+      border: 1.5px solid rgba(61,126,191,0.35);
+      padding: 7px 16px; border-radius: 999px;
+      transition: background 0.2s, color 0.2s, border-color 0.2s;
+    }
+    .about-link:hover { background: var(--accent); color: #fff; border-color: var(--accent); }
+
+    /* fade-up helpers (used inside sections) */
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(20px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+    .fu  { animation: fadeUp 0.55s ease both; }
+    .fu1 { animation-delay: 0.06s; }
+    .fu2 { animation-delay: 0.16s; }
+    .fu3 { animation-delay: 0.26s; }
+    .fu4 { animation-delay: 0.36s; }
+
+    /* =========================================================
+       CV
+       ========================================================= */
+    .cv-section { max-width: 860px; margin: 0 auto; }
+
+    .section-title {
+      font-family: 'Playfair Display', serif;
+      font-size: clamp(1.6rem, 3.5vw, 2.2rem);
+      font-weight: 600; margin-bottom: 1.5rem; letter-spacing: -0.02em;
+    }
+    .section-subtitle {
+      font-size: 0.9rem; color: var(--text-muted);
+      margin-bottom: 2rem; font-weight: 300;
+    }
+
+    .cv-iframe-wrap {
+      background: var(--surface); border-radius: var(--radius);
+      border: 1px solid var(--border); overflow: hidden;
+      box-shadow: 0 4px 24px rgba(0,0,0,0.07);
+      margin-bottom: 2rem;
+    }
+    .cv-iframe-wrap iframe { width: 100%; height: 82vh; min-height: 500px; border: none; display: block; }
+
+    .cv-content {
+      background: var(--surface); border-radius: var(--radius);
+      border: 1px solid var(--border);
+      padding: clamp(1.5rem, 4vw, 3rem);
+      box-shadow: 0 4px 24px rgba(0,0,0,0.07);
+    }
+    .cv-block           { margin-bottom: 2.5rem; }
+    .cv-block:last-child { margin-bottom: 0; }
+    .cv-block-title {
+      font-size: 0.7rem; font-weight: 600; letter-spacing: 0.15em;
+      text-transform: uppercase; color: var(--accent);
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 0.5rem; margin-bottom: 1.25rem;
+    }
+    .cv-item            { margin-bottom: 1.25rem; }
+    .cv-item:last-child { margin-bottom: 0; }
+    .cv-item-header     { display: flex; justify-content: space-between; align-items: baseline; gap: 1rem; flex-wrap: wrap; }
+    .cv-item-title      { font-weight: 500; font-size: 0.97rem; }
+    .cv-item-date       { font-size: 0.8rem; color: var(--text-muted); white-space: nowrap; font-weight: 300; }
+    .cv-item-sub        { font-size: 0.87rem; color: var(--text-muted); margin-top: 2px; font-style: italic; font-weight: 300; }
+    .cv-item-desc       { font-size: 0.87rem; color: var(--text-muted); line-height: 1.65; margin-top: 0.4rem; font-weight: 300; }
+    .cv-item ul         { margin-top: 0.5rem; padding-left: 1.2rem; list-style: disc; }
+    .cv-item li         { font-size: 0.85rem; color: var(--text-muted); line-height: 1.65; margin-bottom: 0.2rem; font-weight: 300; }
+    .cv-pub-num         { font-size: 0.85rem; line-height: 1.7; margin-bottom: 0.75rem; color: var(--text-main); font-weight: 300; }
+    .cv-pub-num a       { color: var(--accent); text-decoration: none; }
+    .cv-pub-num a:hover { text-decoration: underline; }
+    .cv-mini-label      { font-size: 0.78rem; font-weight: 600; letter-spacing: 0.08em; color: var(--text-muted); margin: 1rem 0 0.6rem; }
+    .cv-skills-grid     { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 0.75rem; }
+    .cv-skill-card      { background: var(--bg); border-radius: 10px; padding: 0.6rem 1rem; font-size: 0.85rem; font-weight: 400; color: var(--text-main); border: 1px solid var(--border); }
+
+    /* =========================================================
+       HOBBIES
+       ========================================================= */
+    .hobbies-section { max-width: 860px; margin: 0 auto; }
+    .hobbies-grid    { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.25rem; margin-top: 1rem; }
+
+    .hobby-card {
+      background: var(--surface); border-radius: var(--radius);
+      border: 1px solid var(--border); overflow: hidden;
+      box-shadow: 0 2px 12px rgba(0,0,0,0.05);
+      transition: transform 0.25s ease, box-shadow 0.25s ease;
+    }
+    .hobby-card:hover { transform: translateY(-5px); box-shadow: 0 10px 32px rgba(0,0,0,0.1); }
+
+    .hobby-img-wrap {
+      width: 100%; aspect-ratio: 4/3;
+      background: linear-gradient(135deg, var(--ga), var(--gb));
+      display: flex; align-items: center; justify-content: center;
+      overflow: hidden; position: relative;
+    }
+    .hobby-img-wrap img { width: 100%; height: 100%; object-fit: cover; display: block; }
+    .hobby-placeholder  { font-size: 4.5rem; line-height: 1; user-select: none; }
+
+    .card-climb  { --ga: #d4e8f7; --gb: #9ec8e8; }
+    .card-music  { --ga: #fde8d2; --gb: #f5c49a; }
+    .card-crochet{ --ga: #d8f0e4; --gb: #a8d8bc; }
+
+    .hobby-label { padding: 1rem 1.2rem 1.25rem; }
+    .hobby-name  { font-family: 'Playfair Display', serif; font-size: 1.05rem; font-weight: 600; margin-bottom: 0.35rem; letter-spacing: -0.01em; }
+    .hobby-desc  { font-size: 0.83rem; color: var(--text-muted); line-height: 1.6; font-weight: 300; }
+    .photo-note  { margin-top: 1.5rem; font-size: 0.82rem; color: var(--text-muted); font-style: italic; font-weight: 300; text-align: center; }
+
+    /* =========================================================
+       CONTACT
+       ========================================================= */
+    .contact-section { max-width: 600px; margin: 0 auto; }
+    .contact-card    { background: var(--surface); border-radius: var(--radius); border: 1px solid var(--border); padding: clamp(1.75rem, 5vw, 3rem); box-shadow: 0 4px 24px rgba(0,0,0,0.06); margin-top: 0.5rem; }
+    .contact-row     { display: flex; align-items: flex-start; gap: 1rem; padding: 1.1rem 0; border-bottom: 1px solid var(--border); }
+    .contact-row:last-child { border-bottom: none; }
+    .contact-icon    { width: 40px; height: 40px; border-radius: 10px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+    .icon-blue { background: rgba(61,126,191,0.12); }
+    .icon-warm { background: rgba(224,123,57,0.12); }
+    .contact-info  { flex: 1; }
+    .contact-label { font-size: 0.73rem; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; color: var(--text-muted); margin-bottom: 3px; }
+    .contact-value { font-size: 0.97rem; font-weight: 400; color: var(--text-main); }
+    .contact-value a       { color: var(--accent); text-decoration: none; }
+    .contact-value a:hover { text-decoration: underline; }
+
+    /* =========================================================
+       RESPONSIVE
+       ========================================================= */
+    @media (max-width: 680px) {
+      .nav-list   { display: none; }
+      .hamburger  { display: flex; }
+      .mobile-nav { display: flex; }
+
+      .home-layout { grid-template-columns: 1fr; justify-items: center; text-align: center; }
+      .avatar-col  { width: 100%; }
+      .avatar-wrap { width: 160px; height: 160px; }
+      .about-body  { max-width: 100%; }
+      .about-tags  { justify-content: center; }
+      .about-links { justify-content: center; }
+      .cv-item-header { flex-direction: column; gap: 2px; }
+      .hobbies-grid   { grid-template-columns: 1fr; }
+    }
+    @media (max-width: 900px) and (min-width: 681px) {
+      .hobbies-grid { grid-template-columns: repeat(2, 1fr); }
+    }
+  </style>
+</head>
+
+<body>
+
+<!-- ============================================================
+     HEADER
+     ============================================================ -->
+<header class="site-header">
+  <span class="site-name" onclick="switchTab('home')">Youjia Zhou</span>
+
+  <nav>
+    <ul class="nav-list">
+      <li><button class="nav-btn active" data-tab="home"    onclick="switchTab('home')">Home</button></li>
+      <li><button class="nav-btn"        data-tab="cv"      onclick="switchTab('cv')">CV</button></li>
+      <li><button class="nav-btn"        data-tab="hobbies" onclick="switchTab('hobbies')">Hobbies</button></li>
+      <li><button class="nav-btn"        data-tab="contact" onclick="switchTab('contact')">Contact</button></li>
+    </ul>
+  </nav>
+
+  <button class="hamburger" id="hamburger" aria-label="Toggle menu" onclick="toggleMobile()">
+    <span></span><span></span><span></span>
+  </button>
+</header>
+
+<!-- Mobile drawer -->
+<div class="mobile-nav" id="mobileNav">
+  <button class="nav-btn" onclick="switchTab('home');    closeMobile()">Home</button>
+  <button class="nav-btn" onclick="switchTab('cv');      closeMobile()">CV</button>
+  <button class="nav-btn" onclick="switchTab('hobbies'); closeMobile()">Hobbies</button>
+  <button class="nav-btn" onclick="switchTab('contact'); closeMobile()">Contact</button>
+</div>
+
+<!-- ============================================================
+     MAIN
+     ============================================================ -->
+<main class="page-wrap">
+
+  <!-- ===== HOME ===== -->
+  <section class="section active" id="sec-home">
+    <div class="home-layout">
+
+      <div class="avatar-col fu fu1">
+        <div class="avatar-wrap" id="avatarWrap">
+          <span class="avatar-fallback" id="avatarFallback">YZ</span>
+        </div>
+        <div class="avatar-title">
+          <div class="avatar-role">PhD Student</div>
+          <div class="avatar-inst">University of Notre Dame</div>
+        </div>
+      </div>
+
+      <div class="about-content">
+        <h1 class="about-headline fu fu2">
+          <span class="black">About</span> <span class="colored">me.</span>
+        </h1>
+
+        <div class="about-body fu fu3">
+          <p>
+            Hi! I am Youjia. Broadly, I am interested in how people's interactions with media
+            shape their imagination, aspirations, and decisions about their life trajectories.
+            My current work sits at the intersection of sociology of culture, science and
+            technology studies (with a focus on digital media), and sociology of work and
+            occupations. I study how individuals construct career and educational aspirations
+            through online interactions with strangers, particularly under conditions of
+            labor-market uncertainty.
+          </p>
+          <p>
+            My research develops along two interconnected lines — linking micro-level
+            interaction to macro-level social change. Theoretically, I build on cultural
+            sociology's debates around motivation and justification, while drawing on
+            pragmatism and phenomenology to examine how people imagine their futures in
+            digitally mediated environments. Methodologically, I am interested in integrating
+            semantic network analysis with large-scale text data to trace how cultural
+            understandings of "promising" careers evolve over time, and how these perceptions
+            are linked to cultural values.
+          </p>
+          <p>
+            Previously, my master's thesis examines how STEM-oriented vocational aspirations
+            in China emerge through the interplay of institutional structures and online
+            discourse. My undergraduate thesis focused on how individuals navigate career
+            choices through online forums using qualitative methods. I am also the first
+            author of a published article <em>Nourishing social solidarity in exchanging
+            gifts: a study on social exchange in Shanghai communities during COVID-19
+            lockdown</em> in <em>Humanities &amp; Social Sciences Communications</em>.
+          </p>
+        </div>
+
+        <div class="about-tags fu fu3">
+          <span class="tag tag-blue">Sociology of Culture</span>
+          <span class="tag tag-blue">Social Stratification</span>
+          <span class="tag tag-blue">Computational Methods</span>
+          <span class="tag tag-blue">Text Analysis</span>
+          <span class="tag tag-blue">Work &amp; Occupations</span>
+          <span class="tag tag-blue">STS / Digital Media</span>
+        </div>
+
+        <div class="about-links fu fu4">
+          <a class="about-link" href="#" onclick="switchTab('cv'); return false;">
+            <svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+              <rect x="2" y="1" width="12" height="14" rx="1.5" stroke="currentColor" stroke-width="1.5"/>
+              <line x1="5" y1="5.5" x2="11" y2="5.5" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/>
+              <line x1="5" y1="8.5" x2="11" y2="8.5" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/>
+              <line x1="5" y1="11.5" x2="8.5" y2="11.5" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/>
+            </svg>
+            View CV
+          </a>
+          <a class="about-link" href="#" onclick="switchTab('contact'); return false;">
+            <svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+              <rect x="1" y="3" width="14" height="10" rx="1.5" stroke="currentColor" stroke-width="1.5"/>
+              <path d="M1.5 3.5L8 9L14.5 3.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+            </svg>
+            Contact
+          </a>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ===== CV ===== -->
+  <section class="section" id="sec-cv">
+    <div class="cv-section">
+      <h2 class="section-title fu fu1">Curriculum Vitae</h2>
+
+      <!-- PDF viewer — displayed by JS when cv.pdf is present -->
+      <div class="cv-iframe-wrap fu fu2" id="cvPdfWrap" style="display:none;">
+        <iframe id="cvIframe" title="Youjia Zhou CV" src="cv.pdf"></iframe>
+      </div>
+
+      <!-- Inline CV content -->
+      <div class="cv-content fu fu3">
+
+        <div class="cv-block">
+          <div class="cv-block-title">Education</div>
+          <div class="cv-item">
+            <div class="cv-item-header">
+              <span class="cv-item-title">University of Chicago</span>
+              <span class="cv-item-date">Sep 2024 – Dec 2025</span>
+            </div>
+            <div class="cv-item-sub">M.A. in Social Sciences — Sociology &nbsp;·&nbsp; GPA: 3.97 / 4.0</div>
+            <div class="cv-item-desc">
+              Thesis: <em>From Numbers to Choices: Stratified Rationality and the Making of STEM Vocationalism Aspirations in Chinese Higher Education</em><br>
+              Advisor: Professor Andrew Abbott
+            </div>
+          </div>
+          <div class="cv-item">
+            <div class="cv-item-header">
+              <span class="cv-item-title">University of California, Berkeley</span>
+              <span class="cv-item-date">Aug 2022 – May 2023</span>
+            </div>
+            <div class="cv-item-sub">Exchange Student &nbsp;·&nbsp; GPA: 4.0 / 4.0</div>
+          </div>
+          <div class="cv-item">
+            <div class="cv-item-header">
+              <span class="cv-item-title">Shanghai University of Finance and Economics</span>
+              <span class="cv-item-date">Aug 2020 – Jun 2024</span>
+            </div>
+            <div class="cv-item-sub">B.A. in Journalism &amp; Communication (Honor Degree) &nbsp;·&nbsp; B.Sc. in Statistics (Second Major)</div>
+            <div class="cv-item-desc">GPA: 3.71 / 4.0 &nbsp;·&nbsp; Rank: 1 / 33</div>
+          </div>
+        </div>
+
+        <div class="cv-block">
+          <div class="cv-block-title">Research Interests</div>
+          <div class="cv-item">
+            <div class="cv-item-desc" style="color:var(--text-main);">
+              Sociology of Culture &nbsp;·&nbsp; Social Theory &nbsp;·&nbsp; Work and Occupations &nbsp;·&nbsp;
+              Computational Methods (text analysis, network analysis) &nbsp;·&nbsp; Science &amp; Technology Studies (Digital Technology)
+            </div>
+          </div>
+        </div>
+
+        <div class="cv-block">
+          <div class="cv-block-title">Publications &amp; Conferences</div>
+          <div class="cv-mini-label">JOURNAL ARTICLES</div>
+          <div class="cv-pub-num">
+            1. <strong>Zhou, Y.</strong>, Dong, C. (2023). Nourishing social solidarity in exchanging gifts: a study on social exchange in Shanghai communities during COVID-19 lockdown.
+            <em>Humanities &amp; Social Sciences Communications</em>, 10, 627.
+            <a href="https://doi.org/10.1057/s41599-023-02152-5" target="_blank" rel="noopener">doi:10.1057/s41599-023-02152-5</a>
+          </div>
+          <div class="cv-pub-num">
+            2. R&amp;R in <em>BJS</em> — <strong>Zhou, Y.</strong> (2023). "Learning to Aspire: How Chinese Educated Elites Adjust Career Aspirations in Uncertainty."
+          </div>
+          <div class="cv-mini-label">ACADEMIC CONFERENCES</div>
+          <div class="cv-pub-num">1. "A Cross-Cultural Study of 'Tense of Value' in Career Decision-making." TASA Annual Conference, November 2023.</div>
+          <div class="cv-pub-num">2. "Learning to Aspire in Precarious Times." BSA Annual Conference: Crisis, Continuity and Change, April 2024.</div>
+          <div class="cv-pub-num">3. "Learning to Aspire in Precarious Times." ASA Annual Conference: Reimagining the Future of Work, August 2025.</div>
+          <div class="cv-mini-label">MEDIA ARTICLE</div>
+          <div class="cv-pub-num">
+            1. <strong>Zhou, Y.</strong> (2022). "Living Together | Young Tenants in the Big City: Building Connections in High Mobility." <em>The Paper.</em>
+            <a href="https://m.thepaper.cn/newsDetail_forward_16529175" target="_blank" rel="noopener">thepaper.cn</a>
+          </div>
+        </div>
+
+        <div class="cv-block">
+          <div class="cv-block-title">Research Experience</div>
+          <div class="cv-item">
+            <div class="cv-item-header">
+              <span class="cv-item-title">University of Chicago — Independent Researcher</span>
+              <span class="cv-item-date">Sep 2024 – Dec 2025</span>
+            </div>
+            <div class="cv-item-sub">Dept. of Sociology &nbsp;·&nbsp; Supervisor: Prof. Andrew Abbott</div>
+            <ul>
+              <li>Computational text analysis of 3,000+ forum posts using word embeddings, semantic projection, and dynamic topic modeling to examine vocationalism discourses in Chinese higher education.</li>
+              <li>Analyzed institutional changes in admission quotas and scoreline hierarchies across 10 years (~6,000 data points/year) to identify structural foundations of aspirations.</li>
+              <li>Qualitative analysis of 200 posts comparing elite and non-elite students' major-choice narratives.</li>
+            </ul>
+          </div>
+          <div class="cv-item">
+            <div class="cv-item-header">
+              <span class="cv-item-title">UC Berkeley — Research Assistant</span>
+              <span class="cv-item-date">Jan 2023 – May 2023</span>
+            </div>
+            <div class="cv-item-sub">Dept. of Sociology &nbsp;·&nbsp; Supervisor: Prof. Jerome Karabel</div>
+            <ul>
+              <li>Analyzed relationships between wealth and well-being across 20 developed countries in Python.</li>
+              <li>Wrote a 100-page literature review on occupational, economic, and educational mobility indices.</li>
+            </ul>
+          </div>
+          <div class="cv-item">
+            <div class="cv-item-header">
+              <span class="cv-item-title">SUFE — Independent Researcher</span>
+              <span class="cv-item-date">Aug 2023 – Jun 2024</span>
+            </div>
+            <div class="cv-item-sub">Dept. of Journalism &amp; Communication &nbsp;·&nbsp; Supervisor: Prof. Xuechen Wang</div>
+            <div class="cv-item-desc">Project: E-commerce Entrepreneurship of Yuanyang New Farmers — 20 in-depth interviews; literature review on new-farmer self-identification and social mobility.</div>
+          </div>
+          <div class="cv-item">
+            <div class="cv-item-header">
+              <span class="cv-item-title">SUFE — Research Assistant</span>
+              <span class="cv-item-date">Aug 2023 – Dec 2023</span>
+            </div>
+            <div class="cv-item-sub">Project: Digital elderly care in the Global South &nbsp;·&nbsp; Supervisor: Prof. Hong Chen</div>
+          </div>
+          <div class="cv-item">
+            <div class="cv-item-header">
+              <span class="cv-item-title">SUFE — Research Assistant</span>
+              <span class="cv-item-date">Dec 2020 – Jun 2021</span>
+            </div>
+            <div class="cv-item-sub">Project: Neighborhood building in "tenant communities" (Funded by National Foundation of Philosophy and Social Science) &nbsp;·&nbsp; Supervisor: Prof. Zhe Sun</div>
+            <ul>
+              <li>Designed and conducted 30 in-depth interviews; participated in ethnographic observation.</li>
+              <li>Developed typology for categorizing tenants; applied text analysis to Shanghai rental policy archives.</li>
+            </ul>
+          </div>
+        </div>
+
+        <div class="cv-block">
+          <div class="cv-block-title">Other Experience</div>
+          <div class="cv-item">
+            <div class="cv-item-header">
+              <span class="cv-item-title">IResearch Consulting — Intern</span>
+              <span class="cv-item-date">Nov 2023 – Jan 2024</span>
+            </div>
+            <div class="cv-item-desc">Cleaned and preprocessed social media data for client brand tracking; generated industrial analysis reports.</div>
+          </div>
+          <div class="cv-item">
+            <div class="cv-item-header">
+              <span class="cv-item-title">China Business Network (CBN) — Intern</span>
+              <span class="cv-item-date">Jun 2021 – Jan 2022</span>
+            </div>
+            <div class="cv-item-desc">Social media sector: monitored media, analyzed hot topics, wrote daily news. Radio &amp; TV sector: investigated audience preferences, conducted interviews, analyzed viewership ratings.</div>
+          </div>
+          <div class="cv-item">
+            <div class="cv-item-header">
+              <span class="cv-item-title">Volunteer Teaching — Rural Yunnan, China</span>
+              <span class="cv-item-date">Jul – Aug 2021</span>
+            </div>
+            <div class="cv-item-desc">Summer tutoring for children with economic difficulties in rural Yunnan province.</div>
+          </div>
+        </div>
+
+        <div class="cv-block">
+          <div class="cv-block-title">Awards &amp; Honors</div>
+          <div class="cv-skills-grid">
+            <div class="cv-skill-card">Second Prize SUFE Scholarship (Top 5%) — 2021</div>
+            <div class="cv-skill-card">First Prize SUFE Scholarship (Top 1%) — 2022</div>
+            <div class="cv-skill-card">SUFE Academic Excellence Scholarship (Top 1%) — 2022</div>
+            <div class="cv-skill-card">Chinese National Scholarship for Undergrad (Top 1%) — 2022</div>
+            <div class="cv-skill-card">Shanghai Outstanding Undergrad Student (Top 1%) — 2024</div>
+            <div class="cv-skill-card">Excellent Graduation Thesis (Top 1%) — 2024</div>
+            <div class="cv-skill-card">Honor Degree — 2024</div>
+          </div>
+        </div>
+
+        <div class="cv-block">
+          <div class="cv-block-title">Skills &amp; Languages</div>
+          <div class="cv-skills-grid">
+            <div class="cv-skill-card">R</div>
+            <div class="cv-skill-card">Python</div>
+            <div class="cv-skill-card">Stata</div>
+            <div class="cv-skill-card">SPSS</div>
+            <div class="cv-skill-card">English (Proficient)</div>
+            <div class="cv-skill-card">Chinese Mandarin (Native)</div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== HOBBIES ===== -->
+  <section class="section" id="sec-hobbies">
+    <div class="hobbies-section">
+      <h2 class="section-title fu fu1">Outside Academia</h2>
+      <p class="section-subtitle fu fu2">Things I do when I'm not reading papers (or pretending to)</p>
+
+      <div class="hobbies-grid fu fu3">
+
+        <div class="hobby-card card-climb">
+          <div class="hobby-img-wrap" id="climbWrap">
+            <span class="hobby-placeholder" id="climbPh">&#129495;</span>
+          </div>
+          <div class="hobby-label">
+            <div class="hobby-name">Rock Climbing</div>
+            <div class="hobby-desc">I enjoy spending quality time with colorful holds — though, to be honest, they usually win. That said, lying flat on the crash pad afterwards has its own kind of peace. Deeply humbling, 10/10 would recommend.</div>
+          </div>
+        </div>
+
+        <div class="hobby-card card-music">
+          <div class="hobby-img-wrap" id="musicWrap">
+            <span class="hobby-placeholder" id="musicPh">&#127925;</span>
+          </div>
+          <div class="hobby-label">
+            <div class="hobby-name">Music</div>
+            <div class="hobby-desc">City-pop, funk, folk, jazz, indie — my playlists are a bit all over the place. I play piano and guitar, and fingerpicking is my love language. The calluses are a badge of honor.</div>
+          </div>
+        </div>
+
+        <div class="hobby-card card-crochet">
+          <div class="hobby-img-wrap" id="crochetWrap">
+            <span class="hobby-placeholder" id="crochetPh">&#129526;</span>
+          </div>
+          <div class="hobby-label">
+            <div class="hobby-name">Crochet</div>
+            <div class="hobby-desc">Yes, I know — it sounds like something your grandma does. But hear me out: there is genuinely no better way to enter a state of pure flow than turning a ball of yarn into a tiny creature, stitch by stitch.</div>
+          </div>
+        </div>
+
+      </div>
+
+      <p class="photo-note fu fu4">
+        Place <code>climbing.jpg</code>, <code>music.jpg</code>, and <code>crochet.jpg</code> (or .png / .jpeg) in the same folder to display your own photos.
+      </p>
+    </div>
+  </section>
+
+  <!-- ===== CONTACT ===== -->
+  <section class="section" id="sec-contact">
+    <div class="contact-section">
+      <h2 class="section-title fu fu1">Get in Touch</h2>
+      <p class="section-subtitle fu fu2">
+        Feel free to reach out regarding research conversations, academic collaboration, or any random thing.
+      </p>
+
+      <div class="contact-card fu fu3">
+
+        <div class="contact-row">
+          <div class="contact-icon icon-blue">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+              <path d="M6.6 10.8C7.8 13.2 9.8 15.2 12.2 16.4L14 14.6C14.2 14.4 14.6 14.4 14.8 14.6C15.6 14.9 16.6 15 17.6 15C18 15 18.4 15.4 18.4 15.8V18.6C18.4 19 18 19.4 17.6 19.4C9.8 19.4 3.6 13.2 3.6 5.4C3.6 5 4 4.6 4.4 4.6H7.2C7.6 4.6 8 5 8 5.4C8 6.4 8.2 7.4 8.4 8.2C8.5 8.6 8.4 9 8.2 9.2L6.6 10.8Z" stroke="#3d7ebf" stroke-width="1.8" fill="none"/>
+            </svg>
+          </div>
+          <div class="contact-info">
+            <div class="contact-label">Phone</div>
+            <div class="contact-value"><a href="tel:5109739478">(510) 973-9478</a></div>
+          </div>
+        </div>
+
+        <div class="contact-row">
+          <div class="contact-icon icon-warm">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+              <rect x="3" y="5" width="18" height="14" rx="2" stroke="#e07b39" stroke-width="1.8"/>
+              <path d="M3 7L12 13L21 7" stroke="#e07b39" stroke-width="1.8" stroke-linecap="round"/>
+            </svg>
+          </div>
+          <div class="contact-info">
+            <div class="contact-label">Email</div>
+            <div class="contact-value"><a href="mailto:youjiazhou2002@gmail.com">youjiazhou2002&#64;gmail.com</a></div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<!-- ============================================================
+     JAVASCRIPT
+     ============================================================ -->
+<script>
+(function () {
+  'use strict';
+
+  /* ── Tab order ── */
+  var ORDER = ['home', 'cv', 'hobbies', 'contact'];
+  var current = 'home';
+
+  /* ── Core switcher ── */
+  window.switchTab = function (id) {
+    if (id === current) return;
+    if (ORDER.indexOf(id) === -1) return;
+
+    var out = document.getElementById('sec-' + current);
+    var ins = document.getElementById('sec-' + id);
+    if (!ins) return;
+
+    var goRight = ORDER.indexOf(id) > ORDER.indexOf(current);
+
+    /* Hide outgoing */
+    if (out) out.classList.remove('active', 'from-right', 'from-left');
+
+    /* Show incoming */
+    ins.classList.remove('from-right', 'from-left');
+    void ins.offsetWidth; /* force reflow → animation restarts */
+    ins.classList.add('active', goRight ? 'from-right' : 'from-left');
+
+    /* Update nav highlight */
+    document.querySelectorAll('.nav-btn').forEach(function (btn) {
+      btn.classList.toggle('active', btn.getAttribute('data-tab') === id);
+    });
+
+    current = id;
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  /* ── Mobile drawer ── */
+  window.toggleMobile = function () {
+    var nav = document.getElementById('mobileNav');
+    var btn = document.getElementById('hamburger');
+    var open = nav.classList.toggle('open');
+    btn.classList.toggle('open', open);
+  };
+  window.closeMobile = function () {
+    document.getElementById('mobileNav').classList.remove('open');
+    document.getElementById('hamburger').classList.remove('open');
+  };
+
+  /* ── Image probe helper ── */
+  function probeImage(bases, wrapId, fallbackId) {
+    var wrap = document.getElementById(wrapId);
+    var ph   = document.getElementById(fallbackId);
+    if (!wrap || !ph) return;
+    var exts = ['.png', '.jpg', '.jpeg'];
+    var flat = [];
+    bases.forEach(function (b) { exts.forEach(function (e) { flat.push(b + e); }); });
+    var i = 0;
+    function tryNext() {
+      if (i >= flat.length) return;
+      var img = new Image();
+      img.onload = function () {
+        ph.style.display = 'none';
+        img.style.cssText = 'width:100%;height:100%;object-fit:cover;border-radius:inherit;display:block;';
+        wrap.insertBefore(img, ph);
+      };
+      img.onerror = function () { i++; tryNext(); };
+      img.src = flat[i];
+    }
+    tryNext();
+  }
+
+  /* Avatar */
+  probeImage(['avatar'], 'avatarWrap', 'avatarFallback');
+
+  /* Hobby photos */
+  probeImage(['climbing'], 'climbWrap',  'climbPh');
+  probeImage(['music'],    'musicWrap',  'musicPh');
+  probeImage(['crochet'],  'crochetWrap','crochetPh');
+
+  /* CV PDF */
+  (function () {
+    var wrap = document.getElementById('cvPdfWrap');
+    if (!wrap) return;
+    fetch('cv.pdf', { method: 'HEAD' })
+      .then(function (r) { if (r.ok) wrap.style.display = 'block'; })
+      .catch(function () {});
+  }());
+
+  /* Page load fade-in */
+  document.addEventListener('DOMContentLoaded', function () {
+    document.body.classList.add('loaded');
+  });
+  /* Fallback if DOMContentLoaded already fired */
+  if (document.readyState !== 'loading') {
+    document.body.classList.add('loaded');
+  }
+
+}());
+</script>
+
+</body>
+</html>
